@@ -1,5 +1,6 @@
 #include "vm.h"
 #include <stdio.h>
+#include <string.h>
 
 int main(int argc, char **argv) {
     if(argc == 1) {
@@ -21,15 +22,18 @@ int main(int argc, char **argv) {
     fclose(file);
     // run the VM
     VM_8085 vm;
-    if(VM_8085_init(&vm, buffer, sz)) {
+    if(VM_8085_init(&vm)) {
         fprintf(stderr, "Failed to initialize VM\n");
         return 1;
     }
-    while(VM_8085_has_next(&vm)) {
+    memcpy(vm.memory, buffer, sz);
+    //vm.memory[0x23d4] = 0xff;
+    while(!VM_8085_finished(&vm)) {
         if(VM_8085_execute_next(&vm)) {
             fprintf(stderr, "Failed to execute instruction\n");
             return 1;
         }
+        //printf("DEBUG: %02x %02x\n", vm.memory[0x23d4], vm.memory[0xaa30]);
     }
     VM_8085_free(&vm);
     return 0;
