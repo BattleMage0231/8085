@@ -3,7 +3,7 @@
 #include <string.h>
 
 int main(int argc, char **argv) {
-    if(argc == 1) {
+    if(argc != 2) {
         fprintf(stderr, "Usage: %s [file]\n", argv[0]);
         return 1;
     }

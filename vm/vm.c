@@ -40,7 +40,7 @@ int VM_8085_execute_next(VM_8085 *vm) {
             vm->memory[addr] = vm->A;
             vm->PC += 3; return 0;
         }
-        case 0x3a: {// LDA arg1arg2
+        case 0x3a: { // LDA arg1arg2
             uint16_t addr = CONCAT16(arg1, arg2);
             vm->A = vm->memory[addr];
             vm->PC += 3; return 0;
