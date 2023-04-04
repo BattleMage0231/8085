@@ -1,2 +1,3 @@
-build
-data.bin
+./asm8085/__pycache__
+./asm8085/vm/__pycache__
+./asm8085/assembler/__pycache__
