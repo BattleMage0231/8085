@@ -45,7 +45,7 @@ class Assembler:
         self.index += 1
 
     def parse_string(self, msg='Expected string'):
-        alphabet = string.ascii_uppercase + string.digits
+        alphabet = string.ascii_uppercase + string.ascii_lowercase + string.digits
         if self.done() or self.cur() not in alphabet:
             self.err(msg)
         ident = ''

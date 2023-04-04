@@ -2,10 +2,11 @@ from assembler import Assembler
 from vm import VM
 
 program = """
-MVI A,0F
+MVI A,0F 
 STA 1004
 STA 1008
 STA 100C
+ADI 30
 HLT
 """
 
