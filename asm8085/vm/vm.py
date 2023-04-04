@@ -79,7 +79,7 @@ class VM:
             ans = self.regs.A + arg1
             self.flags.Z = 1 if ans == 0 else 0
             self.flags.S = 1 if ans & 0x80 else 0
-            self.flags.P = self.popcnt(ans & 0xff) % 2
+            self.flags.P = 0 if self.popcnt(ans & 0xff) & 1 else 1 
             self.flags.CY = 1 if ans > 0xff else 0
             self.regs.A = ans & 0xff
             self.regs.PC += 2
