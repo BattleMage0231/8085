@@ -112,8 +112,8 @@ class Assembler:
             arg = self.as_hex_two_bytes(arg)
             top = arg >> 8
             bottom = arg & 0xff
-            self.emit(top)
             self.emit(bottom)
+            self.emit(top)
         elif op == 'LDA':
             self.emit(0x3a)
             self.space_chk('Expected argument to STA')
@@ -121,8 +121,8 @@ class Assembler:
             arg = self.as_hex_two_bytes(arg)
             top = arg >> 8
             bottom = arg & 0xff
-            self.emit(top)
             self.emit(bottom)
+            self.emit(top)
         elif op == 'HLT':
             self.emit(0x76)
         elif op == 'ADI':
