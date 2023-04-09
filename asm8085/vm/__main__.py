@@ -1,5 +1,6 @@
 import unittest
-from vm import VMError, Registers, Flags, VM
+from util import VMError, Registers, Flags
+from vm import VM
 
 class ControlTest(unittest.TestCase):
     def test_nop(self):

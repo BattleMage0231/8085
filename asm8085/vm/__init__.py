@@ -1,1 +1,2 @@
-from .vm import VMError, Registers, Flags, VM
+from .util import VMError, Registers, Flags, Memory
+from .vm import VM
