@@ -156,6 +156,141 @@ class DataTransferTest(unittest.TestCase):
         self.assertEqual(vm.mem[0x40f2], 0x12)
         self.assertEqual(vm.regs.PC, 1)
 
+class ArithmeticTest(unittest.TestCase):
+    def test_add(self):
+        vm = VM()
+        vm.mem[0] = 0x82 # ADD D
+        vm.regs.A = 0x2e
+        vm.regs.D = 0x6c
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x9a)
+        self.assertEqual(vm.flags.as_byte(), 0x84)
+        self.assertEqual(vm.regs.PC, 1)
+
+    def test_adi(self):
+        vm = VM()
+        # ADI 66
+        vm.mem[0] = 0xc6
+        vm.mem[1] = 0x42
+        vm.regs.A = 0x14
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x56)
+        self.assertEqual(vm.flags.as_byte(), 0x04)
+        self.assertEqual(vm.regs.PC, 2)
+
+    def test_adc(self):
+        vm = VM()
+        vm.mem[0] = 0x89 # ADC C
+        vm.regs.A = 0x42
+        vm.regs.C = 0x3d
+        vm.flags.CY = 1
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x80)
+        self.assertEqual(vm.flags.as_byte(), 0x80)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_aci(self):
+        vm = VM()
+        # ACI 42
+        vm.mem[0] = 0xce
+        vm.mem[1] = 0x42
+        vm.regs.A = 0x14
+        vm.flags.CY = 1
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x57)
+        self.assertEqual(vm.flags.as_byte(), 0x00)
+        self.assertEqual(vm.regs.PC, 2)
+    
+    def test_sub(self):
+        vm = VM()
+        vm.mem[0] = 0x97 # SUB A
+        vm.regs.A = 0x3e
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x00)
+        self.assertEqual(vm.flags.as_byte(), 0x44)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_sui(self):
+        vm = VM()
+        # SUI 01
+        vm.mem[0] = 0xd6
+        vm.mem[1] = 0x01
+        vm.regs.A = 0x09
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x08)
+        self.assertEqual(vm.flags.as_byte(), 0x00)
+        self.assertEqual(vm.regs.PC, 2)
+    
+    def test_sbb(self):
+        vm = VM()
+        vm.mem[0] = 0x98 # SBB B
+        vm.regs.A = 0x04
+        vm.regs.B = 0x02
+        vm.flags.CY = 1
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x01)
+        self.assertEqual(vm.flags.as_byte(), 0x00)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_sbi(self):
+        vm = VM()
+        # SBI 02
+        vm.mem[0] = 0xde
+        vm.mem[1] = 0x02
+        vm.regs.A = 0x04
+        vm.flags.CY = 1
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x01)
+        self.assertEqual(vm.flags.as_byte(), 0x00)
+        self.assertEqual(vm.regs.PC, 2)
+
+    def test_inr(self):
+        vm = VM()
+        vm.mem[0] = 0x0c # INR C
+        vm.regs.C = 0x99
+        vm.execute_next()
+        self.assertEqual(vm.regs.C, 0x9a)
+        self.assertEqual(vm.flags.as_byte(), 0x84)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_dcr(self):
+        vm = VM()
+        vm.mem[0] = 0x25 # DCR H
+        vm.regs.H = 0x00
+        vm.flags.CY = 1
+        vm.execute_next()
+        self.assertEqual(vm.regs.H, 0xff)
+        self.assertEqual(vm.flags.as_byte(), 0x85)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_inx(self):
+        vm = VM()
+        vm.mem[0] = 0x13 # INX DE
+        vm.regs.DE = 0x01ff
+        vm.execute_next()
+        self.assertEqual(vm.regs.DE, 0x0200)
+        self.assertEqual(vm.flags.as_byte(), 0x00)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_dcx(self):
+        vm = VM()
+        vm.mem[0] = 0x2b # DCX HL
+        vm.regs.HL = 0x9800
+        vm.execute_next()
+        self.assertEqual(vm.regs.HL, 0x97ff)
+        self.assertEqual(vm.flags.as_byte(), 0x00)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_dad(self):
+        vm = VM()
+        vm.mem[0] = 0x39 # DAD SP
+        vm.regs.HL = 0x1234
+        vm.regs.SP = 0xffff
+        vm.execute_next()
+        self.assertEqual(vm.regs.HL, 0x1233)
+        self.assertEqual(vm.flags.as_byte(), 0x01)
+        self.assertEqual(vm.regs.PC, 1)
+
 class ComplexTest(unittest.TestCase):
     pass
 

@@ -47,6 +47,9 @@ class Flags:
         self.S = 0
         self.P = 0
         self.CY = 0
+    
+    def as_byte(self):
+        return (self.S << 7) | (self.Z << 6) | (self.P << 2) | self.CY
 
 def popcnt(val):
     return bin(val).count('1')
@@ -103,7 +106,7 @@ class VM:
         elif enc == 0b101:
             return self.regs.L
         elif enc == 0b110:
-            return self.get_mem(self.regs.HL, 'Invalid address in [HL]')
+            return self.get_mem(self.regs.HL)
         elif enc == 0b111:
             return self.regs.A
     
@@ -159,6 +162,12 @@ class VM:
     
     def set_rp(self, val, opcode):
         self.set_reg_pair(val, (opcode & 0x30) >> 4)
+
+    def set_flags(self, val):
+        self.flags.Z = 1 if val & 0xff == 0 else 0
+        self.flags.S = 1 if val & 0x80 != 0 else 0
+        self.flags.P = 1 if popcnt(val & 0xff) & 1 == 0 else 0
+        self.flags.CY = 1 if val > 0xff else 0
 
     def execute_next(self):
         if self.halted:
@@ -217,5 +226,89 @@ class VM:
             tmp = self.get_mem(self.regs.SP + 1)
             self.set_mem(self.regs.SP + 1, self.regs.H)
             self.regs.H = tmp
+        elif match(opcode, '10000SSS'): # ADD
+            self.regs.PC += 1
+            src = self.get_src(opcode)
+            res = self.regs.A + src
+            self.set_flags(res)
+            self.regs.A = res & 0xff
+        elif opcode == 0xc6: # ADI
+            arg = self.get_single_arg()
+            self.regs.PC += 2
+            res = self.regs.A + arg
+            self.set_flags(res)
+            self.regs.A = res & 0xff
+        elif match(opcode, '10001SSS'): # ADC
+            self.regs.PC += 1
+            src = self.get_src(opcode)
+            res = self.regs.A + src + self.flags.CY
+            self.set_flags(res)
+            self.regs.A = res & 0xff
+        elif opcode == 0xce: # ACI
+            arg = self.get_single_arg()
+            self.regs.PC += 2
+            res = self.regs.A + arg + self.flags.CY
+            self.set_flags(res)
+            self.regs.A = res & 0xff
+        elif match(opcode, '10010SSS'): # SUB
+            self.regs.PC += 1
+            src = compl(self.get_src(opcode))
+            res = self.regs.A + src
+            self.set_flags(res)
+            self.flags.CY ^= 1
+            self.regs.A = res & 0xff
+        elif opcode == 0xd6: # SUI
+            arg = compl(self.get_single_arg())
+            self.regs.PC += 2
+            res = self.regs.A + arg
+            self.set_flags(res)
+            self.flags.CY ^= 1
+            self.regs.A = res & 0xff
+        elif match(opcode, '10011SSS'): # SBB
+            self.regs.PC += 1
+            src = self.get_src(opcode)
+            res = self.regs.A + compl((src + self.flags.CY) % 256)
+            self.set_flags(res)
+            self.flags.CY ^= 1
+            self.regs.A = res & 0xff
+        elif opcode == 0xde: # SBI
+            arg = self.get_single_arg()
+            self.regs.PC += 2
+            res = self.regs.A + compl((arg + self.flags.CY) % 256)
+            self.set_flags(res)
+            self.flags.CY ^= 1
+            self.regs.A = res & 0xff
+        elif match(opcode, '00DDD100'): # INR
+            self.regs.PC += 1
+            dest = self.get_dest(opcode)
+            res = dest + 1
+            CY = self.flags.CY
+            self.set_flags(res)
+            self.flags.CY = CY
+            self.set_dest(res & 0xff, opcode)
+        elif match(opcode, '00DDD101'): # DCR
+            self.regs.PC += 1
+            dest = self.get_dest(opcode)
+            res = dest + 0xff
+            CY = self.flags.CY
+            self.set_flags(res)
+            self.flags.CY = CY
+            self.set_dest(res & 0xff, opcode)
+        elif match(opcode, '00RP0011'): # INX
+            self.regs.PC += 1
+            rp = self.get_rp(opcode)
+            res = rp + 1
+            self.set_rp(res & 0xffff, opcode)
+        elif match(opcode, '00RP1011'): # DCX
+            self.regs.PC += 1
+            rp = self.get_rp(opcode)
+            res = rp + 0xffff
+            self.set_rp(res & 0xffff, opcode)
+        elif match(opcode, '00RP1001'): # DAD
+            self.regs.PC += 1
+            rp = self.get_rp(opcode)
+            res = self.regs.HL + rp
+            self.flags.CY = 1 if res > 0xffff else 0
+            self.regs.HL = res & 0xffff
         else:
             raise VMError(f'Unknown instruction {opcode:02x}')
