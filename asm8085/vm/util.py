@@ -19,6 +19,7 @@ class Registers:
     
     @BC.setter
     def BC(self, value):
+        assert 0 <= value <= 0xffff
         self.B = value >> 8
         self.C = value & 0xff
     
@@ -28,6 +29,7 @@ class Registers:
     
     @DE.setter
     def DE(self, value):
+        assert 0 <= value <= 0xffff
         self.D = value >> 8
         self.E = value & 0xff
     
@@ -37,6 +39,7 @@ class Registers:
     
     @HL.setter
     def HL(self, value):
+        assert 0 <= value <= 0xffff
         self.H = value >> 8
         self.L = value & 0xff
     
@@ -67,6 +70,7 @@ class Registers:
             raise IndexError(f'Unknown register encoding {enc:04b}')
 
     def __setitem__(self, enc, val):
+        assert 0 <= val <= (0xff if enc & 0b1000 == 0 else 0xffff)
         if enc == 0b0000:
             self.B = val
         elif enc == 0b0001:
@@ -100,12 +104,11 @@ class Flags:
         self.P = 0
         self.CY = 0
 
-    def update(self, val):
-        assert val >= 0
+    def update_zsp(self, val):
+        assert 0 <= val <= 0xff
         self.Z = 1 if val & 0xff == 0 else 0
         self.S = 1 if val & 0x80 != 0 else 0
-        self.P = 1 if popcnt(val & 0xff) & 1 == 0 else 0
-        self.CY = 1 if val > 0xff else 0
+        self.P = 1 if bin(val & 0xff).count('1') % 2 == 0 else 0
 
     def as_byte(self):
         return (self.S << 7) | (self.Z << 6) | (self.P << 2) | self.CY
@@ -130,13 +133,6 @@ class Memory:
         if idx >= self.len:
             raise VMError('Invalid address')
         self.content[idx] = val
-
-def popcnt(val):
-    return bin(val).count('1')
-
-def compl(val):
-    assert 0 <= val <= 0xff
-    return ((val ^ 0xff) + 1) & 0xff
 
 def get_src(opcode):
     assert 0 <= opcode <= 0xff

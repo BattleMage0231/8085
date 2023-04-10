@@ -190,6 +190,17 @@ class ArithmeticTest(unittest.TestCase):
         self.assertEqual(vm.flags.as_byte(), 0x80)
         self.assertEqual(vm.regs.PC, 1)
     
+    def test_adc_max(self):
+        vm = VM()
+        vm.mem[0] = 0x89 # ADC C
+        vm.regs.A = 0x42
+        vm.regs.C = 0xff
+        vm.flags.CY = 1
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x42)
+        self.assertEqual(vm.flags.as_byte(), 0x05)
+        self.assertEqual(vm.regs.PC, 1)
+    
     def test_aci(self):
         vm = VM()
         # ACI 42
@@ -206,6 +217,14 @@ class ArithmeticTest(unittest.TestCase):
         vm = VM()
         vm.mem[0] = 0x97 # SUB A
         vm.regs.A = 0x3e
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x00)
+        self.assertEqual(vm.flags.as_byte(), 0x44)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_sub_zero(self):
+        vm = VM()
+        vm.mem[0] = 0x97 # SUB A
         vm.execute_next()
         self.assertEqual(vm.regs.A, 0x00)
         self.assertEqual(vm.flags.as_byte(), 0x44)
@@ -231,6 +250,17 @@ class ArithmeticTest(unittest.TestCase):
         vm.execute_next()
         self.assertEqual(vm.regs.A, 0x01)
         self.assertEqual(vm.flags.as_byte(), 0x00)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_sbb_max(self):
+        vm = VM()
+        vm.mem[0] = 0x98 # SBB B
+        vm.regs.A = 0x12
+        vm.regs.B = 0xff
+        vm.flags.CY = 1
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x12)
+        self.assertEqual(vm.flags.as_byte(), 0x05)
         self.assertEqual(vm.regs.PC, 1)
     
     def test_sbi(self):

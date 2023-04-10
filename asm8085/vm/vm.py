@@ -17,6 +17,64 @@ class VM:
         arg2 = self.mem[self.regs.PC + 2]
         return (arg2 << 8) | arg1
 
+    def extract_enc(self, enc):
+        return self.regs[enc] if enc != 0b110 else self.mem[self.regs.HL]
+
+    def extract_src(self, opcode):
+        return self.extract_enc(get_src(opcode))
+    
+    def extract_dest(self, opcode):
+        return self.extract_enc(get_dest(opcode))
+
+    def extract_rp(self, opcode):
+        return self.extract_enc(get_rp(opcode))
+    
+    def apply_add(self, val):
+        assert 0 <= val <= 0xff
+        res = self.regs.A + val
+        self.flags.CY = 1 if res > 255 else 0
+        self.regs.A = res % 256
+        self.flags.update_zsp(self.regs.A)
+    
+    def apply_add_carry(self, val):
+        assert 0 <= val <= 0xff
+        if val == 0xff and self.flags.CY == 1:
+            self.flags.update_zsp(self.regs.A)
+        else:
+            self.apply_add(val + self.flags.CY)
+
+    def apply_sub(self, val):
+        assert 0 <= val <= 0xff
+        res = self.regs.A - val
+        self.flags.CY = 1 if res < 0 else 0
+        self.regs.A = res % 256
+        self.flags.update_zsp(self.regs.A)
+    
+    def apply_sub_borrow(self, val):
+        assert 0 <= val <= 0xff
+        if val == 0xff and self.flags.CY == 1:
+            self.flags.update_zsp(self.regs.A)
+        else:
+            self.apply_sub(val + self.flags.CY)
+        
+    def apply_and(self, val):
+        assert 0 <= val <= 0xff
+        self.regs.A &= val
+        self.flags.CY = 0
+        self.flags.update_zsp(self.regs.A)
+    
+    def apply_or(self, val):
+        assert 0 <= val <= 0xff
+        self.regs.A |= val
+        self.flags.CY = 0
+        self.flags.update_zsp(self.regs.A)
+
+    def apply_xor(self, val):
+        assert 0 <= val <= 0xff
+        self.regs.A ^= val
+        self.flags.CY = 0
+        self.flags.update_zsp(self.regs.A)
+
     def execute_next(self):
         if self.halted:
             raise VMError('Cannot run a halted program')
@@ -27,14 +85,12 @@ class VM:
             self.halted = True
             self.regs.PC += 1
         elif opcode != 0x76 and opcode & 0xc0 == 0x40: # MOV
-            src = get_src(opcode)
+            val = self.extract_src(opcode)
             dest = get_dest(opcode)
-            if src == 0b110:
-                self.regs[dest] = self.mem[self.regs.HL]
-            elif dest == 0b110:
-                self.mem[self.regs.HL] = self.regs[src]
+            if dest == 0b110:
+                self.mem[self.regs.HL] = val
             else:
-                self.regs[dest] = self.regs[src]
+                self.regs[dest] = val
             self.regs.PC += 1
         elif opcode & 0xc7 == 0x06: # MVI
             dest = get_dest(opcode)
@@ -68,12 +124,11 @@ class VM:
             self.regs[rp] = arg
             self.regs.PC += 3
         elif opcode & 0xef == 0x0a: # LDAX
-            rp = get_rp(opcode)
-            self.regs.A = self.mem[self.regs[rp]]
+            addr = self.extract_rp(opcode)
+            self.regs.A = self.mem[addr]
             self.regs.PC += 1
         elif opcode & 0xef == 0x02: # STAX
-            rp = get_rp(opcode)
-            addr = self.regs[rp]
+            addr = self.extract_rp(opcode)
             self.mem[addr] = self.regs.A
             self.regs.PC += 1
         elif opcode == 0xeb: # XCHG
@@ -86,68 +141,42 @@ class VM:
             self.mem[idx2], self.regs.H = self.regs.H, self.mem[idx2]
             self.regs.PC += 1
         elif opcode & 0xf8 == 0x80: # ADD
-            src = get_src(opcode)
-            val = self.regs[src] if src != 0b110 else self.mem[self.regs.HL]
-            res = self.regs.A + val
-            self.flags.update(res)
-            self.regs.A = res & 0xff
+            val = self.extract_src(opcode)
+            self.apply_add(val)
             self.regs.PC += 1
         elif opcode == 0xc6: # ADI
             arg = self.get_single_arg()
-            res = self.regs.A + arg
-            self.flags.update(res)
-            self.regs.A = res & 0xff
+            self.apply_add(arg)
             self.regs.PC += 2
         elif opcode & 0xf8 == 0x88: # ADC
-            src = get_src(opcode)
-            val = self.regs[src] if src != 0b110 else self.mem[self.regs.HL]
-            res = self.regs.A + val + self.flags.CY
-            self.flags.update(res)
-            self.regs.A = res & 0xff
+            val = self.extract_src(opcode)
+            self.apply_add_carry(val)
             self.regs.PC += 1
         elif opcode == 0xce: # ACI
             arg = self.get_single_arg()
-            res = self.regs.A + arg + self.flags.CY
-            self.flags.update(res)
-            self.regs.A = res & 0xff
+            self.apply_add_carry(arg)
             self.regs.PC += 2
         elif opcode & 0xf8 == 0x90: # SUB
-            src = get_src(opcode)
-            val = self.regs[src] if src != 0b110 else self.mem[self.regs.HL]
-            res = self.regs.A + compl(val)
-            self.flags.update(res)
-            self.flags.CY ^= 1
-            self.regs.A = res & 0xff
+            val = self.extract_src(opcode)
+            self.apply_sub(val)
             self.regs.PC += 1
         elif opcode == 0xd6: # SUI
-            arg = compl(self.get_single_arg())
-            res = self.regs.A + arg
-            self.flags.update(res)
-            self.flags.CY ^= 1
-            self.regs.A = res & 0xff
+            arg = self.get_single_arg()
+            self.apply_sub(arg)
             self.regs.PC += 2
         elif opcode & 0xf8 == 0x98: # SBB
-            src = get_src(opcode)
-            val = self.regs[src] if src != 0b110 else self.mem[self.regs.HL]
-            res = self.regs.A + compl((val + self.flags.CY) & 0xff)
-            self.flags.update(res)
-            self.flags.CY ^= 1
-            self.regs.A = res & 0xff
+            val = self.extract_src(opcode)
+            self.apply_sub_borrow(val)
             self.regs.PC += 1
         elif opcode == 0xde: # SBI
             arg = self.get_single_arg()
-            res = self.regs.A + compl((arg + self.flags.CY) & 0xff)
-            self.flags.update(res)
-            self.flags.CY ^= 1
-            self.regs.A = res & 0xff
+            self.apply_sub_borrow(arg)
             self.regs.PC += 2
         elif opcode & 0xc7 == 0x04: # INR
             dest = get_dest(opcode)
-            val = self.regs[dest] if dest != 0b110 else self.mem[self.regs.HL]
+            val = self.extract_dest(opcode)
             res = (val + 0x01) & 0xff
-            CY = self.flags.CY
-            self.flags.update(res)
-            self.flags.CY = CY
+            self.flags.update_zsp(res)
             if dest == 0b110:
                 self.mem[self.regs.HL] = res
             else:
@@ -155,11 +184,9 @@ class VM:
             self.regs.PC += 1
         elif opcode & 0xc7 == 0x05: # DCR
             dest = get_dest(opcode)
-            val = self.regs[dest] if dest != 0b110 else self.mem[self.regs.HL]
+            val = self.extract_dest(opcode)
             res = (val + 0xff) & 0xff
-            CY = self.flags.CY
-            self.flags.update(res)
-            self.flags.CY = CY
+            self.flags.update_zsp(res)
             if dest == 0b110:
                 self.mem[self.regs.HL] = res
             else:
@@ -176,10 +203,38 @@ class VM:
             self.regs[rp] = res
             self.regs.PC += 1
         elif opcode & 0xcf == 0x09: # DAD
-            rp = get_rp(opcode)
-            res = self.regs.HL + self.regs[rp]
+            val = self.extract_rp(opcode)
+            res = self.regs.HL + val
             self.flags.CY = 1 if res > 0xffff else 0
             self.regs.HL = res & 0xffff
             self.regs.PC += 1
+        elif opcode & 0xf8 == 0xa0: # ANA
+            val = self.extract_src(opcode)
+            self.apply_and(val)
+            self.regs.PC += 1
+        elif opcode == 0xe6: # ANI
+            arg = self.get_single_arg()
+            self.apply_and(arg)
+            self.regs.PC += 2
+        elif opcode & 0xf8 == 0xb0: # ORA
+            val = self.extract_src(opcode)
+            self.apply_or(val)
+            self.regs.PC += 1
+        elif opcode == 0xf6: # ORI
+            arg = self.get_single_arg()
+            self.apply_or(arg)
+            self.regs.PC += 2
+        elif opcode & 0xf8 == 0xa8: # XRA
+            val = self.extract_src(opcode)
+            self.apply_xor(val)
+            self.regs.PC += 1
+        elif opcode == 0xee: # XRI
+            arg = self.get_single_arg()
+            self.apply_xor(arg)
+            self.regs.PC += 2
+        elif opcode & 0xf8 == 0xb8: # CMP
+            pass
+        elif opcode == 0xfe: # CPI
+            pass
         else:
             raise VMError(f'Unknown instruction {opcode:02x}')
