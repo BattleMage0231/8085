@@ -1,108 +1,49 @@
 class VMError(Exception):
     pass
 
-class Registers:
-    def __init__(self):
-        self.A = 0
-        self.B = 0
-        self.C = 0
-        self.D = 0
-        self.E = 0
-        self.H = 0
-        self.L = 0
-        self.PC = 0
-        self.SP = 0
-    
-    @property
-    def BC(self):
-        return (self.B << 8) | self.C
-    
-    @BC.setter
-    def BC(self, value):
-        assert 0 <= value <= 0xffff
-        self.B = value >> 8
-        self.C = value & 0xff
-    
-    @property
-    def DE(self):
-        return (self.D << 8) | self.E
-    
-    @DE.setter
-    def DE(self, value):
-        assert 0 <= value <= 0xffff
-        self.D = value >> 8
-        self.E = value & 0xff
-    
-    @property
-    def HL(self):
-        return (self.H << 8) | self.L
-    
-    @HL.setter
-    def HL(self, value):
-        assert 0 <= value <= 0xffff
-        self.H = value >> 8
-        self.L = value & 0xff
-    
-    def __getitem__(self, enc):
-        if enc == 0b0000:
-            return self.B
-        elif enc == 0b0001:
-            return self.C
-        elif enc == 0b0010:
-            return self.D
-        elif enc == 0b0011:
-            return self.E
-        elif enc == 0b0100:
-            return self.H
-        elif enc == 0b0101:
-            return self.L
-        elif enc == 0b0111:
-            return self.A
-        elif enc == 0b1000:
-            return self.BC
-        elif enc == 0b1001:
-            return self.DE
-        elif enc == 0b1010:
-            return self.HL
-        elif enc == 0b1011:
-            return self.SP
-        else:
-            raise IndexError(f'Unknown register encoding {enc:04b}')
-
-    def __setitem__(self, enc, val):
-        assert 0 <= val <= (0xff if enc & 0b1000 == 0 else 0xffff)
-        if enc == 0b0000:
-            self.B = val
-        elif enc == 0b0001:
-            self.C = val
-        elif enc == 0b0010:
-            self.D = val
-        elif enc == 0b0011:
-            self.E = val
-        elif enc == 0b0100:
-            self.H = val
-        elif enc == 0b0101:
-            self.L = val
-        elif enc == 0b0111:
-            self.A = val
-        elif enc == 0b1000:
-            self.BC = val
-        elif enc == 0b1001:
-            self.DE = val
-        elif enc == 0b1010:
-            self.HL = val
-        elif enc == 0b1011:
-            self.SP = val
-        else:
-            raise IndexError(f'Unknown register encoding {enc:04b}')
-
 # AC not supported
 class Flags:
     def __init__(self):
-        self.Z = 0
-        self.S = 0
-        self.P = 0
-        self.CY = 0
+        self._Z = 0
+        self._S = 0
+        self._P = 0
+        self._CY = 0
+    
+    @property
+    def Z(self):
+        return self._Z
+    
+    @Z.setter
+    def Z(self, value):
+        assert value == 0 or value == 1
+        self._Z = value
+    
+    @property
+    def S(self):
+        return self._S
+    
+    @S.setter
+    def S(self, value):
+        assert value == 0 or value == 1
+        self._S = value
+    
+    @property
+    def P(self):
+        return self._P
+    
+    @P.setter
+    def P(self, value):
+        assert value == 0 or value == 1
+        self._P = value
+    
+    @property
+    def CY(self):
+        return self._CY
+    
+    @CY.setter
+    def CY(self, value):
+        assert value == 0 or value == 1
+        self._CY = value
 
     def update_zsp(self, val):
         assert 0 <= val <= 0xff

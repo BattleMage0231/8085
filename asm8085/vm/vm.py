@@ -1,4 +1,5 @@
 from util import *
+from registers import Registers
 
 class VM:
     RAM_SIZE = 64000 # bytes
@@ -29,6 +30,13 @@ class VM:
     def extract_rp(self, opcode):
         return self.extract_enc(get_rp(opcode))
     
+    def apply_mov(self, val, dest):
+        assert 0 <= val <= 0xff
+        if dest == 0b110:
+            self.mem[self.regs.HL] = val
+        else:
+            self.regs[dest] = val
+
     def apply_add(self, val):
         assert 0 <= val <= 0xff
         res = self.regs.A + val
@@ -75,6 +83,12 @@ class VM:
         self.flags.CY = 0
         self.flags.update_zsp(self.regs.A)
 
+    def apply_cmp(self, val):
+        assert 0 <= val <= 0xff
+        res = self.regs.A - val
+        self.flags.CY = 1 if res < 0 else 0
+        self.flags.update_zsp(res % 256)
+
     def execute_next(self):
         if self.halted:
             raise VMError('Cannot run a halted program')
@@ -87,18 +101,12 @@ class VM:
         elif opcode != 0x76 and opcode & 0xc0 == 0x40: # MOV
             val = self.extract_src(opcode)
             dest = get_dest(opcode)
-            if dest == 0b110:
-                self.mem[self.regs.HL] = val
-            else:
-                self.regs[dest] = val
+            self.apply_mov(val, dest)
             self.regs.PC += 1
         elif opcode & 0xc7 == 0x06: # MVI
             dest = get_dest(opcode)
             arg = self.get_single_arg()
-            if dest == 0b110:
-                self.mem[self.regs.HL] = arg
-            else:
-                self.regs[dest] = arg
+            self.apply_mov(arg, dest)
             self.regs.PC += 2
         elif opcode == 0x3a: # LDA
             addr = self.get_double_arg()
@@ -233,8 +241,39 @@ class VM:
             self.apply_xor(arg)
             self.regs.PC += 2
         elif opcode & 0xf8 == 0xb8: # CMP
-            pass
+            val = self.extract_src(opcode)
+            self.apply_cmp(val)
+            self.regs.PC += 1
         elif opcode == 0xfe: # CPI
-            pass
+            arg = self.get_single_arg()
+            self.apply_cmp(arg)
+            self.regs.PC += 2
+        elif opcode == 0x07: # RLC
+            self.flags.CY = self.regs.A >> 7
+            self.regs.A = ((self.regs.A << 1) & 0xff) | (self.regs.A >> 7)
+            self.regs.PC += 1
+        elif opcode == 0x0f: # RRC
+            self.flags.CY = self.regs.A & 1
+            self.regs.A = ((self.regs.A & 1) << 7) | (self.regs.A >> 1)
+            self.regs.PC += 1
+        elif opcode == 0x17: # RAL
+            msb = self.regs.A >> 7
+            self.regs.A = ((self.regs.A << 1) & 0xff) | self.flags.CY
+            self.flags.CY = msb
+            self.regs.PC += 1
+        elif opcode == 0x1f: # RAR
+            lsb = self.regs.A & 1
+            self.regs.A = (self.flags.CY << 7) | (self.regs.A >> 1)
+            self.flags.CY = lsb
+            self.regs.PC += 1
+        elif opcode == 0x2f: # CMA
+            self.regs.A ^= 0xff
+            self.regs.PC += 1
+        elif opcode == 0x3f: # CMC
+            self.flags.CY ^= 1
+            self.regs.PC += 1
+        elif opcode == 0x37: # STC
+            self.flags.CY = 1
+            self.regs.PC += 1
         else:
             raise VMError(f'Unknown instruction {opcode:02x}')

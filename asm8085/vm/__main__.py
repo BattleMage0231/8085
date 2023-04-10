@@ -1,5 +1,5 @@
 import unittest
-from util import VMError, Registers, Flags
+from util import VMError
 from vm import VM
 
 class ControlTest(unittest.TestCase):
@@ -320,6 +320,153 @@ class ArithmeticTest(unittest.TestCase):
         vm.execute_next()
         self.assertEqual(vm.regs.HL, 0x1233)
         self.assertEqual(vm.flags.as_byte(), 0x01)
+        self.assertEqual(vm.regs.PC, 1)
+
+class LogicalTest(unittest.TestCase):
+    def test_ana(self):
+        vm = VM()
+        vm.mem[0] = 0xa1 # ANA C
+        vm.regs.A = 0xfc
+        vm.regs.C = 0x0f
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x0c)
+        self.assertEqual(vm.flags.as_byte(), 0x04)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_ani(self):
+        vm = VM()
+        # ANI AA
+        vm.mem[0] = 0xe6
+        vm.mem[1] = 0xaa
+        vm.regs.A = 0x0f
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x0a)
+        self.assertEqual(vm.flags.as_byte(), 0x04)
+        self.assertEqual(vm.regs.PC, 2)
+    
+    def test_ora(self):
+        vm = VM()
+        vm.mem[0] = 0xb2 # ORA D
+        vm.regs.A = 0x43
+        vm.regs.D = 0x08
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x4b)
+        self.assertEqual(vm.flags.as_byte(), 0x04)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_ori(self):
+        vm = VM()
+        # ORI AA
+        vm.mem[0] = 0xf6
+        vm.mem[1] = 0xaa
+        vm.regs.A = 0x0f
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0xaf)
+        self.assertEqual(vm.flags.as_byte(), 0x84)
+        self.assertEqual(vm.regs.PC, 2)
+    
+    def test_xra(self):
+        vm = VM()
+        vm.mem[0] = 0xaf # XRA A
+        vm.regs.A = 0xfe
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x00)
+        self.assertEqual(vm.flags.as_byte(), 0x44)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_xri(self):
+        vm = VM()
+        # XRI AA
+        vm.mem[0] = 0xee
+        vm.mem[1] = 0xaa
+        vm.regs.A = 0x0f
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0xa5)
+        self.assertEqual(vm.flags.as_byte(), 0x84)
+        self.assertEqual(vm.regs.PC, 2)
+    
+    def test_cmp(self):
+        vm = VM()
+        vm.mem[0] = 0xbb # CMP E
+        vm.regs.A = 0x0a
+        vm.regs.E = 0x05
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x0a)
+        self.assertEqual(vm.flags.as_byte(), 0x04)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_cpi(self):
+        vm = VM()
+        # CPI 10
+        vm.mem[0] = 0xfe
+        vm.mem[1] = 0x10
+        vm.regs.A = 0x00
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x00)
+        self.assertEqual(vm.flags.as_byte(), 0x85)
+        self.assertEqual(vm.regs.PC, 2)
+    
+    def test_rlc(self):
+        vm = VM()
+        vm.mem[0] = 0x07 # RLC
+        vm.regs.A = 0x57
+        vm.flags.CY = 1
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0xae)
+        self.assertEqual(vm.flags.CY, 0)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_rrc(self):
+        vm = VM()
+        vm.mem[0] = 0x0f # RRC
+        vm.regs.A = 0x9a
+        vm.flags.CY = 1
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0x4d)
+        self.assertEqual(vm.flags.CY, 0)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_ral(self):
+        vm = VM()
+        vm.mem[0] = 0x17 # RAL
+        vm.regs.A = 0x57
+        vm.flags.CY = 1
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0xaf)
+        self.assertEqual(vm.flags.CY, 0)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_rar(self):
+        vm = VM()
+        vm.mem[0] = 0x1f # RAR
+        vm.regs.A = 0x9a
+        vm.flags.CY = 1
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0xcd)
+        self.assertEqual(vm.flags.CY, 0)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_cma(self):
+        vm = VM()
+        vm.mem[0] = 0x2f # CMA
+        vm.regs.A = 0x51
+        vm.execute_next()
+        self.assertEqual(vm.regs.A, 0xae)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_cmc(self):
+        vm = VM()
+        vm.mem[0] = 0x3f # CMC
+        vm.flags.CY = 1
+        vm.execute_next()
+        self.assertEqual(vm.flags.CY, 0)
+        self.assertEqual(vm.regs.PC, 1)
+    
+    def test_stc(self):
+        vm = VM()
+        vm.mem[0] = 0x37 # STC
+        vm.execute_next()
+        self.assertEqual(vm.flags.CY, 1)
         self.assertEqual(vm.regs.PC, 1)
 
 class ComplexTest(unittest.TestCase):
